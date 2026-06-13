@@ -1323,6 +1323,61 @@ initSync=function(){
   initGithubSync();
 };
 
+
+// ===== Auto Sync (GitHub) =====
+var _syncTimer = null;
+function _doAutoSync() {
+  if (_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(async function() {
+    var cfg = glsc();
+    if (cfg.token && cfg.repo && navigator.onLine) {
+      try {
+        var token = cfg.token, repo = cfg.repo;
+        var get = await fetch('https://api.github.com/repos/' + repo + '/contents/bill_data.json', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var gd = await get.json();
+        if (get.ok && gd.content) {
+          var remote = JSON.parse(decodeURIComponent(escape(atob(gd.content))));
+          if (Array.isArray(remote)) {
+            var map = new Map();
+            remote.forEach(function(t) { map.set(t.id, t); });
+            state.transactions.forEach(function(t) { if (!map.has(t.id)) map.set(t.id, t); });
+            var merged = Array.from(map.values()).sort(function(a,b) { return (b.createdAt||0)-(a.createdAt||0); });
+            state.transactions = merged; saveData(); renderAll();
+            // Push merged
+            var content = btoa(unescape(encodeURIComponent(JSON.stringify(merged, null, 2))));
+            await fetch('https://api.github.com/repos/' + repo + '/contents/bill_data.json', {
+              method: 'PUT', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'Auto sync', content: content, sha: gd.sha, branch: 'main' })
+            });
+          }
+        } else if (!get.ok && gd.message === 'Not Found') {
+          // No remote data, upload local
+          var content = btoa(unescape(encodeURIComponent(JSON.stringify(state.transactions, null, 2))));
+          await fetch('https://api.github.com/repos/' + repo + '/contents/bill_data.json', {
+            method: 'PUT', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Initial sync', content: content, branch: 'main' })
+          });
+        }
+      } catch(e) { /* silent */ }
+    }
+  }, 3000);
+}
+
+// Hook into data change functions
+var _origAddTx = addTx;
+addTx = function(data) { var tx = _origAddTx(data); _doAutoSync(); return tx; };
+var _origUpdateTx = updateTx;
+updateTx = function(id, data) { _origUpdateTx(id, data); _doAutoSync(); };
+var _origDeleteTx = deleteTx;
+deleteTx = function(id) { _origDeleteTx(id); _doAutoSync(); };
+var _origClearAll = clearAll;
+clearAll = function() { _origClearAll(); _doAutoSync(); };
+
+// Run on startup
+setTimeout(function() { _doAutoSync(); }, 2000);
+
 // ===== Init =====
 loadData();
 document.getElementById('dateInput').value=todayStr();
