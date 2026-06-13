@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>账单记录器</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="账单记录器">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#2D6A4F">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green-900:#1B4332;
+  --green-800:#2D6A4F;
+  --green-700:#40916C;
+  --green-600:#52B788;
+  --green-500:#74C69D;
+  --green-100:#D8F3DC;
+  --green-50:#F0FFF4;
+  --gray-900:#1a1a2e;
+  --gray-700:#4a4a5a;
+  --gray-400:#9e9eae;
+  --gray-200:#e0e0e8;
+  --gray-100:#f5f5f8;
+  --white:#ffffff;
+  --red:#e74c3c;
+  --red-bg:#fdecea;
+  --green:#27ae60;
+  --green-bg:#e8f8f0;
+  --radius:12px;
+  --shadow:0 2px 12px rgba(0,0,0,0.06);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  font-size:16px
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--gray-100);
+  color:var(--gray-900);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent
+}
+#app{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  max-width:480px;
+  margin:0 auto;
+  padding-top:var(--safe-top)
+}
+
+/* Header */
+.app-header{
+  background:var(--green-800);
+  color:var(--white);
+  padding:12px 16px;
+  padding-top:calc(12px + var(--safe-top));
+  flex-shrink:0;
+  position:sticky;
+  top:0;
+  z-index:10
+}
+.app-header .top-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between
+}
+.app-header h1{
+  font-size:1.25rem;
+  font-weight:700;
+  letter-spacing:1px
+}
+.header-actions{display:flex;gap:8px}
+.header-actions button{
+  background:rgba(255,255,255,0.15);
+  border:none;
+  color:var(--white);
+  width:36px;height:36px;
+  border-radius:50%;
+  font-size:1.1rem;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:background .2s
+}
+.header-actions button:hover{background:rgba(255,255,255,0.25)}
+.month-nav{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-top:8px
+}
+.month-nav button{
+  background:rgba(255,255,255,0.12);
+  border:none;
+  color:var(--white);
+  width:32px;height:32px;
+  border-radius:50%;
+  font-size:1rem;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:background .2s
+}
+.month-nav button:hover{background:rgba(255,255,255,0.22)}
+.month-nav .month-label{
+  font-size:1rem;
+  font-weight:600;
+  min-width:120px;
+  text-align:center
+}
+
+/* Summary Card */
+.summary-card{
+  margin:-20px 12px 0;
+  background:var(--white);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px 20px;
+  flex-shrink:0;
+  position:relative;
+  z-index:5
+}
+.summary-row{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+  text-align:center
+}
+.summary-item{display:flex;flex-direction:column;gap:2px}
+.summary-item .label{
+  font-size:.75rem;
+  color:var(--gray-400);
+  font-weight:500
+}
+.summary-item .amount{
+  font-size:1.15rem;
+  font-weight:700;
+  color:var(--gray-900)
+}
+.summary-item .amount.income{color:var(--green)}
+.summary-item .amount.expense{color:var(--red)}
+
+/* Scrollable main area */
+.main-scroll{
+  flex:1;
+  overflow-y:auto;
+  padding:12px 12px calc(80px + var(--safe-bottom));
+  -webkit-overflow-scrolling:touch
+}
+
+/* Add Form */
+.add-form{
+  background:var(--white);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px;
+  margin-bottom:12px
+}
+.type-toggle{
+  display:flex;
+  background:var(--gray-100);
+  border-radius:8px;
+  padding:3px;
+  margin-bottom:14px
+}
+.type-toggle button{
+  flex:1;
+  border:none;
+  background:transparent;
+  padding:8px;
+  border-radius:6px;
+  font-size:.875rem;
+  font-weight:600;
+  color:var(--gray-700);
+  cursor:pointer;
+  transition:all .2s
+}
+.type-toggle button.active{
+  background:var(--white);
+  color:var(--green-800);
+  box-shadow:0 1px 4px rgba(0,0,0,0.08)
+}
+.type-toggle button[data-type="expense"].active{color:var(--red)}
+.type-toggle button[data-type="income"].active{color:var(--green)}
+.amount-row{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin-bottom:14px;
+  background:var(--gray-100);
+  border-radius:8px;
+  padding:4px 12px;
+  border:2px solid transparent;
+  transition:border-color .2s
+}
+.amount-row:focus-within{border-color:var(--green-600)}
+.amount-row .currency{
+  font-size:1.3rem;
+  font-weight:700;
+  color:var(--gray-700)
+}
+.amount-row input{
+  flex:1;
+  border:none;
+  background:transparent;
+  font-size:1.5rem;
+  font-weight:700;
+  padding:8px 0;
+  outline:none;
+  color:var(--gray-900);
+  min-width:0
+}
+.amount-row input::placeholder{color:var(--gray-400)}
+
+/* Categories */
+#categories{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:12px
+}
+.cat-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:6px 12px;
+  border-radius:20px;
+  border:1.5px solid var(--gray-200);
+  background:var(--white);
+  font-size:.8rem;
+  color:var(--gray-700);
+  cursor:pointer;
+  transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none
+}
+.cat-chip .emoji{font-size:1rem;line-height:1}
+.cat-chip.selected{
+  background:var(--green-100);
+  border-color:var(--green-600);
+  color:var(--green-800);
+  font-weight:600
+}
+.cat-chip.expense.selected{
+  background:var(--red-bg);
+  border-color:var(--red);
+  color:var(--red)
+}
+.cat-chip.income.selected{
+  background:var(--green-bg);
+  border-color:var(--green);
+  color:var(--green)
+}
+
+/* Form extras */
+.form-extras{
+  display:flex;
+  gap:8px;
+  margin-bottom:12px
+}
+.form-extras input,.form-extras select{
+  flex:1;
+  border:1.5px solid var(--gray-200);
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:.85rem;
+  background:var(--white);
+  color:var(--gray-900);
+  outline:none;
+  transition:border-color .2s
+}
+.form-extras input:focus,.form-extras select:focus{border-color:var(--green-600)}
+.form-extras input::placeholder{color:var(--gray-400)}
+
+.submit-btn{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  background:var(--green-800);
+  color:var(--white);
+  font-size:1rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .2s,transform .1s
+}
+.submit-btn:hover{background:var(--green-700)}
+.submit-btn:active{transform:scale(0.98)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.submit-btn.cancel-btn{background:var(--gray-400)}
+.submit-btn.cancel-btn:hover{background:var(--gray-700)}
+
+/* Transaction List */
+.section-title{
+  font-size:1rem;
+  font-weight:700;
+  color:var(--gray-900);
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between
+}
+.section-title .count{
+  font-size:.8rem;
+  font-weight:500;
+  color:var(--gray-400)
+}
+.transaction-list{display:flex;flex-direction:column;gap:6px}
+.tx-item{
+  background:var(--white);
+  border-radius:8px;
+  padding:12px 14px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  cursor:pointer;
+  transition:all .15s;
+  animation:slideIn .25s ease-out
+}
+.tx-item:hover{box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.tx-cat-icon{
+  width:40px;height:40px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.2rem;
+  flex-shrink:0
+}
+.tx-cat-icon.expense{background:var(--red-bg)}
+.tx-cat-icon.income{background:var(--green-bg)}
+.tx-info{flex:1;min-width:0}
+.tx-info .tx-cat-name{
+  font-size:.85rem;
+  font-weight:600;
+  color:var(--gray-900)
+}
+.tx-info .tx-meta{
+  font-size:.75rem;
+  color:var(--gray-400);
+  display:flex;
+  gap:6px;
+  align-items:center;
+  margin-top:1px
+}
+.tx-info .tx-meta .dot{width:3px;height:3px;border-radius:50%;background:var(--gray-200)}
+.tx-amount{
+  font-size:1rem;
+  font-weight:700;
+  white-space:nowrap;
+  flex-shrink:0
+}
+.tx-amount.expense{color:var(--red)}
+.tx-amount.income{color:var(--green)}
+.tx-delete{
+  width:28px;height:28px;
+  border:none;
+  background:var(--gray-100);
+  border-radius:50%;
+  color:var(--gray-400);
+  font-size:.85rem;
+  cursor:pointer;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  transition:opacity .2s,background .2s,color .2s
+}
+.tx-item:hover .tx-delete,.tx-item.show-delete .tx-delete{opacity:1}
+.tx-delete:hover{background:var(--red-bg);color:var(--red)}
+
+/* Empty state */
+.empty-state{
+  text-align:center;
+  padding:40px 20px;
+  color:var(--gray-400)
+}
+.empty-state .icon{font-size:3rem;margin-bottom:12px}
+.empty-state p{font-size:.9rem}
+
+/* Stats Section (category breakdown) */
+.stats-section{
+  background:var(--white);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px;
+  margin-bottom:12px;
+  display:none
+}
+.stats-section.show{display:block}
+.stats-section h3{
+  font-size:.95rem;
+  font-weight:700;
+  margin-bottom:10px;
+  color:var(--gray-900)
+}
+.stat-bar-group{display:flex;flex-direction:column;gap:8px}
+.stat-row{
+  display:flex;
+  align-items:center;
+  gap:8px
+}
+.stat-row .stat-label{
+  font-size:.8rem;
+  min-width:60px;
+  color:var(--gray-700);
+  white-space:nowrap
+}
+.stat-row .stat-bar-wrap{
+  flex:1;
+  height:8px;
+  background:var(--gray-200);
+  border-radius:4px;
+  overflow:hidden
+}
+.stat-row .stat-bar{
+  height:100%;
+  border-radius:4px;
+  transition:width .4s ease
+}
+.stat-row .stat-bar.expense-bar{background:var(--red)}
+.stat-row .stat-bar.income-bar{background:var(--green)}
+.stat-row .stat-amount{
+  font-size:.8rem;
+  font-weight:600;
+  min-width:60px;
+  text-align:right;
+  color:var(--gray-700)
+}
+
+/* Toast */
+.toast{
+  position:fixed;
+  bottom:calc(80px + var(--safe-bottom));
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--gray-900);
+  color:var(--white);
+  padding:10px 20px;
+  border-radius:8px;
+  font-size:.85rem;
+  opacity:0;
+  transition:all .3s;
+  pointer-events:none;
+  z-index:100;
+  white-space:nowrap
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Modal overlay */
+.modal-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  z-index:200;
+  align-items:flex-end;
+  justify-content:center
+}
+.modal-overlay.show{display:flex}
+.modal-sheet{
+  background:var(--white);
+  width:100%;
+  max-width:480px;
+  border-radius:var(--radius) var(--radius) 0 0;
+  padding:20px;
+  padding-bottom:calc(20px + var(--safe-bottom));
+  animation:slideUp .25s ease-out
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-sheet h3{
+  font-size:1rem;
+  font-weight:700;
+  margin-bottom:14px;
+  text-align:center
+}
+
+/* Confirm dialog */
+.confirm-dialog{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  z-index:300;
+  align-items:center;
+  justify-content:center
+}
+.confirm-dialog.show{display:flex}
+.confirm-box{
+  background:var(--white);
+  border-radius:var(--radius);
+  padding:24px;
+  width:280px;
+  text-align:center;
+  animation:slideIn .2s ease-out
+}
+.confirm-box p{font-size:.9rem;color:var(--gray-700);margin-bottom:16px}
+.confirm-actions{display:flex;gap:8px}
+.confirm-actions button{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  font-size:.85rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .2s
+}
+.confirm-actions .btn-cancel{background:var(--gray-100);color:var(--gray-700)}
+.confirm-actions .btn-cancel:hover{background:var(--gray-200)}
+.confirm-actions .btn-confirm{background:var(--red);color:var(--white)}
+.confirm-actions .btn-confirm:hover{background:#c0392b}
+
+/* Responsive */
+@media(min-width:480px){
+  body{padding:0}
+  #app{border-left:1px solid var(--gray-200);border-right:1px solid var(--gray-200);box-shadow:0 0 20px rgba(0,0,0,0.06)}
+  .summary-card{margin-left:12px;margin-right:12px}
+}
+@media(max-width:380px){
+  .summary-item .amount{font-size:1rem}
+  .cat-chip{padding:5px 10px;font-size:.75rem}
+}
+
+/* Sync */
+#syncLog{white-space:pre-wrap;font-family:monospace}
+
+/* GitHub Sync */
+.sync-tabs{display:flex;gap:4px;margin-bottom:10px}
+.sync-tab{flex:1;padding:7px;border:1.5px solid var(--gray-200);border-radius:6px;background:var(--white);font-size:.8rem;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;color:var(--gray-700)}
+.sync-tab.active{background:var(--green-800);color:var(--white);border-color:var(--green-800)}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="top-row">
+      <h1>📋 账单记录器</h1>
+      <div class="header-actions">
+        <button id="statsToggle" title="查看统计">📊</button>
+        <button id="syncBtn" title="云端同步">🔄</button>
+        <button id="exportBtn" title="导出数据">📤</button>
+        <button id="clearBtn" title="清除数据">🗑️</button>
+      </div>
+    </div>
+    <div class="month-nav">
+      <button id="prevMonth">‹</button>
+      <span class="month-label" id="monthLabel">2026年 6月</span>
+      <button id="nextMonth">›</button>
+    </div>
+  </header>
+
+  <!-- Summary Card -->
+  <div class="summary-card">
+    <div class="summary-row">
+      <div class="summary-item">
+        <span class="label">收入</span>
+        <span class="amount income" id="totalIncome">¥0.00</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">支出</span>
+        <span class="amount expense" id="totalExpense">¥0.00</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">结余</span>
+        <span class="amount" id="totalBalance">¥0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrollable Content -->
+  <div class="main-scroll" id="mainScroll">
+    <!-- Add Form -->
+    <div class="add-form" id="addForm">
+      <div class="type-toggle">
+        <button class="active" data-type="expense">支出</button>
+        <button data-type="income">收入</button>
+      </div>
+      <div class="amount-row">
+        <span class="currency">¥</span>
+        <input type="number" id="amountInput" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+      </div>
+      <div id="categories"></div>
+      <div class="form-extras">
+        <input type="date" id="dateInput">
+        <input type="text" id="noteInput" placeholder="备注（可选）" maxlength="50">
+      </div>
+      <button class="submit-btn" id="submitBtn">✔ 记录</button>
+      <button class="submit-btn cancel-btn" id="cancelEditBtn" style="display:none">✕ 取消编辑</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-section" id="statsSection">
+      <h3>📊 本月分类统计</h3>
+      <div id="statsContent"></div>
+    </div>
+
+    <!-- Transaction List -->
+    <div class="section-title">
+      <span>交易记录</span>
+      <span class="count" id="txCount">共 0 笔</span>
+    </div>
+    <div class="transaction-list" id="txList"></div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-sheet">
+    <h3>✏️ 编辑记录</h3>
+    <div class="type-toggle" id="editTypeToggle">
+      <button class="active" data-type="expense">支出</button>
+      <button data-type="income">收入</button>
+    </div>
+    <div class="amount-row">
+      <span class="currency">¥</span>
+      <input type="number" id="editAmount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div id="editCategories"></div>
+    <div class="form-extras">
+      <input type="date" id="editDate">
+      <input type="text" id="editNote" placeholder="备注（可选）" maxlength="50">
+    </div>
+    <button class="submit-btn" id="editSaveBtn">💾 保存修改</button>
+    <button class="submit-btn cancel-btn" id="editCancelBtn">✕ 取消</button>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-dialog" id="confirmDialog">
+  <div class="confirm-box">
+    <p id="confirmMsg">确定要执行此操作吗？</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" id="confirmCancel">取消</button>
+      <button class="btn-confirm" id="confirmOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Data & State =====
+const EXPENSE_CATS = [
+  {id:'food',emoji:'🍔',label:'餐饮'},
+  {id:'transport',emoji:'🚌',label:'交通'},
+  {id:'shopping',emoji:'🛒',label:'购物'},
+  {id:'entertainment',emoji:'🎮',label:'娱乐'},
+  {id:'housing',emoji:'🏠',label:'居家'},
+  {id:'medical',emoji:'💊',label:'医疗'},
+  {id:'education',emoji:'📚',label:'教育'},
+  {id:'comm',emoji:'📱',label:'通讯'},
+  {id:'clothing',emoji:'👕',label:'服饰'},
+  {id:'gift',emoji:'🎁',label:'人情'},
+  {id:'other',emoji:'📦',label:'其他'}
+];
+const INCOME_CATS = [
+  {id:'salary',emoji:'💼',label:'工资'},
+  {id:'parttime',emoji:'💰',label:'兼职'},
+  {id:'investment',emoji:'📈',label:'投资'},
+  {id:'redpacket',emoji:'🧧',label:'红包'},
+  {id:'refund',emoji:'💳',label:'退款'},
+  {id:'other_income',emoji:'📦',label:'其他'}
+];
+const STORAGE_KEY = 'bill_tracker_data';
+let state = {
+  transactions: [],
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(),
+  type: 'expense',
+  editType: 'expense',
+  selectedCat: null,
+  editSelectedCat: null,
+  editingId: null,
+  statsVisible: false
+};
+
+// ===== Core Functions =====
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    state.transactions = raw ? JSON.parse(raw) : [];
+  }catch(e){state.transactions=[]}
+}
+function saveData(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state.transactions))}catch(e){}
+}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
+function addTx(data){
+  const tx={id:genId(),...data,createdAt:Date.now()};
+  state.transactions.unshift(tx);
+  saveData();
+  renderAll();
+  showToast(data.type==='expense'?'支出已记录':'收入已记录');
+  return tx;
+}
+function updateTx(id,data){
+  const idx=state.transactions.findIndex(t=>t.id===id);
+  if(idx>-1){state.transactions[idx]={...state.transactions[idx],...data};saveData();renderAll();showToast('已更新')}
+}
+function deleteTx(id){
+  state.transactions=state.transactions.filter(t=>t.id!==id);
+  saveData();
+  renderAll();
+  showToast('已删除');
+}
+function clearAll(){
+  state.transactions=[];
+  saveData();
+  renderAll();
+  showToast('已清空所有数据');
+}
+
+function getMonthTxs(y,m){
+  const prefix=y+'-'+String(m+1).padStart(2,'0');
+  return state.transactions.filter(t=>t.date.startsWith(prefix)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+}
+
+function calcSummary(txs){
+  let income=0,expense=0;
+  txs.forEach(t=>{if(t.type==='income')income+=t.amount;else expense+=t.amount});
+  return{income,expense,balance:income-expense};
+}
+
+function getCatForTx(tx){
+  const cats=tx.type==='expense'?EXPENSE_CATS:INCOME_CATS;
+  return cats.find(c=>c.id===tx.category)||cats[cats.length-1];
+}
+
+// ===== Toast =====
+let toastTimer=null;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
+}
+
+// ===== Confirm =====
+let confirmCallback=null;
+function showConfirm(msg,cb){
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmDialog').classList.add('show');
+  confirmCallback=cb;
+}
+document.getElementById('confirmCancel').onclick=()=>{document.getElementById('confirmDialog').classList.remove('show');confirmCallback=null};
+document.getElementById('confirmOk').onclick=()=>{
+  document.getElementById('confirmDialog').classList.remove('show');
+  if(confirmCallback){confirmCallback();confirmCallback=null}
+};
+
+// ===== Render =====
+function renderAll(){
+  renderMonth();
+  renderSummary();
+  renderCategories();
+  renderEditCategories();
+  renderTransactions();
+  renderStats();
+}
+
+function renderMonth(){
+  document.getElementById('monthLabel').textContent=state.year+'年 '+(state.month+1)+'月';
+}
+
+function renderSummary(){
+  const txs=getMonthTxs(state.year,state.month);
+  const s=calcSummary(txs);
+  document.getElementById('totalIncome').textContent='¥'+s.income.toFixed(2);
+  document.getElementById('totalExpense').textContent='¥'+s.expense.toFixed(2);
+  const balEl=document.getElementById('totalBalance');
+  balEl.textContent='¥'+s.balance.toFixed(2);
+  balEl.style.color=s.balance>=0?'var(--green)':'var(--red)';
+}
+
+function renderCategories(){
+  const cats=state.type==='expense'?EXPENSE_CATS:INCOME_CATS;
+  const container=document.getElementById('categories');
+  container.innerHTML=cats.map(c=>`
+    <div class="cat-chip ${state.type}${state.selectedCat===c.id?' selected':''}" data-cat="${c.id}" data-type="${state.type}">
+      <span class="emoji">${c.emoji}</span> ${c.label}
+    </div>
+  `).join('');
+  container.querySelectorAll('.cat-chip').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const cat=el.dataset.cat;
+      state.selectedCat=state.selectedCat===cat?null:cat;
+      renderCategories();
+    });
+  });
+}
+
+function renderEditCategories(){
+  const cats=state.editType==='expense'?EXPENSE_CATS:INCOME_CATS;
+  const container=document.getElementById('editCategories');
+  container.innerHTML=cats.map(c=>`
+    <div class="cat-chip ${state.editType}${state.editSelectedCat===c.id?' selected':''}" data-cat="${c.id}">
+      <span class="emoji">${c.emoji}</span> ${c.label}
+    </div>
+  `).join('');
+  container.querySelectorAll('.cat-chip').forEach(el=>{
+    el.addEventListener('click',()=>{
+      state.editSelectedCat=el.dataset.cat;
+      renderEditCategories();
+    });
+  });
+}
+
+function renderTransactions(){
+  const txs=getMonthTxs(state.year,state.month);
+  const container=document.getElementById('txList');
+  document.getElementById('txCount').textContent='共 '+txs.length+' 笔';
+  if(txs.length===0){
+    container.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>本月还没有记录<br>在上面添加一笔吧</p></div>';
+    return;
+  }
+  // Group by date
+  const groups={};
+  txs.forEach(t=>{
+    if(!groups[t.date])groups[t.date]=[];
+    groups[t.date].push(t);
+  });
+  const sortedDates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  container.innerHTML=sortedDates.map(date=>{
+    const items=groups[date].map(t=>{
+      const cat=getCatForTx(t);
+      const sign=t.type==='expense'?'-':'+';
+      return `<div class="tx-item" data-id="${t.id}">
+        <div class="tx-cat-icon ${t.type}"><span>${cat.emoji}</span></div>
+        <div class="tx-info">
+          <div class="tx-cat-name">${cat.label}${t.note?' · '+escapeHtml(t.note):''}</div>
+          <div class="tx-meta"><span>${t.type==='expense'?'支出':'收入'}</span><span class="dot"></span><span>${t.date.slice(5)}</span></div>
+        </div>
+        <div class="tx-amount ${t.type}">${sign}¥${t.amount.toFixed(2)}</div>
+        <button class="tx-delete" data-id="${t.id}">×</button>
+      </div>`;
+    }).join('');
+    const d=new Date(date+'T00:00:00');
+    const dayNames=['周日','周一','周二','周三','周四','周五','周六'];
+    const dateLabel=(date===todayStr()?'今天 ':'')+(d.getMonth()+1)+'月'+d.getDate()+'日 '+dayNames[d.getDay()];
+    return `<div class="date-group">
+      <div style="font-size:.8rem;font-weight:600;color:var(--gray-700);padding:6px 4px 2px">${dateLabel}</div>
+      ${items}
+    </div>`;
+  }).join('');
+  // Event listeners
+  container.querySelectorAll('.tx-item').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      if(e.target.closest('.tx-delete'))return;
+      openEditModal(el.dataset.id);
+    });
+    // Long press or swipe to show delete on mobile
+    let touchTimer;
+    el.addEventListener('touchstart',()=>{
+      touchTimer=setTimeout(()=>el.classList.add('show-delete'),600);
+    },{passive:true});
+    el.addEventListener('touchend',()=>clearTimeout(touchTimer),{passive:true});
+    el.addEventListener('touchmove',()=>clearTimeout(touchTimer),{passive:true});
+  });
+  container.querySelectorAll('.tx-delete').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const id=btn.dataset.id;
+      showConfirm('确定要删除这笔记录吗？',()=>deleteTx(id));
+    });
+  });
+}
+
+function escapeHtml(s){
+  const div=document.createElement('div');
+  div.textContent=s;
+  return div.innerHTML;
+}
+
+function renderStats(){
+  const section=document.getElementById('statsSection');
+  if(!state.statsVisible){section.classList.remove('show');return}
+  section.classList.add('show');
+  const txs=getMonthTxs(state.year,state.month);
+  const container=document.getElementById('statsContent');
+  // Expense breakdown
+  const expenseTxs=txs.filter(t=>t.type==='expense');
+  const incomeTxs=txs.filter(t=>t.type==='income');
+  const expenseTotal=expenseTxs.reduce((s,t)=>s+t.amount,0);
+  const incomeTotal=incomeTxs.reduce((s,t)=>s+t.amount,0);
+  let html='';
+  if(expenseTxs.length>0&&expenseTotal>0){
+    html+='<div style="margin-bottom:12px"><div style="font-size:.85rem;font-weight:600;color:var(--red);margin-bottom:6px">支出分类</div><div class="stat-bar-group">';
+    const groups={};
+    expenseTxs.forEach(t=>{
+      const cat=getCatForTx(t);
+      if(!groups[cat.id])groups[cat.id]={cat,amount:0};
+      groups[cat.id].amount+=t.amount;
+    });
+    const sorted=Object.values(groups).sort((a,b)=>b.amount-a.amount);
+    sorted.forEach(g=>{
+      const pct=((g.amount/expenseTotal)*100).toFixed(0);
+      html+=`<div class="stat-row">
+        <span class="stat-label">${g.cat.emoji} ${g.cat.label}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar expense-bar" style="width:${pct}%"></div></div>
+        <span class="stat-amount">¥${g.amount.toFixed(0)}</span>
+      </div>`;
+    });
+    html+='</div></div>';
+  }
+  if(incomeTxs.length>0&&incomeTotal>0){
+    html+='<div><div style="font-size:.85rem;font-weight:600;color:var(--green);margin-bottom:6px">收入分类</div><div class="stat-bar-group">';
+    const groups={};
+    incomeTxs.forEach(t=>{
+      const cat=getCatForTx(t);
+      if(!groups[cat.id])groups[cat.id]={cat,amount:0};
+      groups[cat.id].amount+=t.amount;
+    });
+    const sorted=Object.values(groups).sort((a,b)=>b.amount-a.amount);
+    sorted.forEach(g=>{
+      const pct=((g.amount/incomeTotal)*100).toFixed(0);
+      html+=`<div class="stat-row">
+        <span class="stat-label">${g.cat.emoji} ${g.cat.label}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar income-bar" style="width:${pct}%"></div></div>
+        <span class="stat-amount">¥${g.amount.toFixed(0)}</span>
+      </div>`;
+    });
+    html+='</div></div>';
+  }
+  if(!html)html='<div class="empty-state"><p>本月暂无数据</p></div>';
+  container.innerHTML=html;
+}
+
+// ===== Edit Modal =====
+function openEditModal(id){
+  const tx=state.transactions.find(t=>t.id===id);
+  if(!tx)return;
+  state.editingId=id;
+  state.editType=tx.type;
+  state.editSelectedCat=tx.category;
+  document.getElementById('editAmount').value=tx.amount;
+  document.getElementById('editDate').value=tx.date;
+  document.getElementById('editNote').value=tx.note||'';
+  renderEditCategories();
+  // Set type toggle
+  document.querySelectorAll('#editTypeToggle button').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.type===tx.type);
+  });
+  document.getElementById('editModal').classList.add('show');
+}
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('show');
+  state.editingId=null;
+}
+
+// ===== Export =====
+function exportData(){
+  const data=JSON.stringify(state.transactions,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='账单数据_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('数据已导出');
+}
+
+// ===== Event Listeners =====
+// Month nav
+document.getElementById('prevMonth').addEventListener('click',()=>{
+  state.month--;
+  if(state.month<0){state.month=11;state.year--}
+  state.statsVisible=false;
+  document.getElementById('statsSection').classList.remove('show');
+  renderAll();
+});
+document.getElementById('nextMonth').addEventListener('click',()=>{
+  const now=new Date();
+  // Don't go to future months
+  if(state.year>now.getFullYear()||(state.year===now.getFullYear()&&state.month>=now.getMonth()))return;
+  state.month++;
+  if(state.month>11){state.month=0;state.year++}
+  state.statsVisible=false;
+  document.getElementById('statsSection').classList.remove('show');
+  renderAll();
+});
+
+// Type toggle
+document.querySelectorAll('#addForm .type-toggle button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#addForm .type-toggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.type=btn.dataset.type;
+    state.selectedCat=null;
+    renderCategories();
+  });
+});
+
+// Edit type toggle
+document.querySelectorAll('#editTypeToggle button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#editTypeToggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.editType=btn.dataset.type;
+    state.editSelectedCat=null;
+    renderEditCategories();
+  });
+});
+
+// Submit
+document.getElementById('submitBtn').addEventListener('click',()=>{
+  const amount=parseFloat(document.getElementById('amountInput').value);
+  if(!amount||amount<=0){showToast('请输入有效金额');return}
+  if(!state.selectedCat){showToast('请选择一个分类');return}
+  addTx({
+    type:state.type,
+    amount:Math.round(amount*100)/100,
+    category:state.selectedCat,
+    date:document.getElementById('dateInput').value||todayStr(),
+    note:document.getElementById('noteInput').value.trim()
+  });
+  document.getElementById('amountInput').value='';
+  document.getElementById('noteInput').value='';
+  state.selectedCat=null;
+  renderCategories();
+});
+
+// Cancel edit (inline form)
+document.getElementById('cancelEditBtn').addEventListener('click',()=>{
+  state.editingId=null;
+  document.getElementById('cancelEditBtn').style.display='none';
+  document.getElementById('submitBtn').textContent='✔ 记录';
+  document.getElementById('amountInput').value='';
+  document.getElementById('noteInput').value='';
+  state.selectedCat=null;
+  renderCategories();
+});
+
+// Edit: Save
+document.getElementById('editSaveBtn').addEventListener('click',()=>{
+  const id=state.editingId;
+  const amount=parseFloat(document.getElementById('editAmount').value);
+  if(!amount||amount<=0){showToast('请输入有效金额');return}
+  if(!state.editSelectedCat){showToast('请选择一个分类');return}
+  updateTx(id,{
+    type:state.editType,
+    amount:Math.round(amount*100)/100,
+    category:state.editSelectedCat,
+    date:document.getElementById('editDate').value||todayStr(),
+    note:document.getElementById('editNote').value.trim()
+  });
+  closeEditModal();
+});
+document.getElementById('editCancelBtn').addEventListener('click',closeEditModal);
+document.getElementById('editModal').addEventListener('click',(e)=>{
+  if(e.target===e.currentTarget)closeEditModal();
+});
+
+// Stats toggle
+document.getElementById('statsToggle').addEventListener('click',()=>{
+  state.statsVisible=!state.statsVisible;
+  renderStats();
+});
+
+// Export
+document.getElementById('exportBtn').addEventListener('click',exportData);
+
+// Clear
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  showConfirm('确定要清空所有数据吗？此操作不可恢复！',clearAll);
+});
+
+// Enter key to submit
+document.getElementById('amountInput').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter')document.getElementById('submitBtn').click();
+});
+document.getElementById('noteInput').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter')document.getElementById('submitBtn').click();
+});
+
+
+// ===== Sync =====
+var SK='bill_tracker_sync';
+function lsc(){try{return JSON.parse(localStorage.getItem(SK))||{}}catch(e){return{}}}
+function ssc(c){localStorage.setItem(SK,JSON.stringify(c))}
+function sm(m){var e=document.getElementById('syncLog');if(!e)return;e.textContent+=new Date().toLocaleTimeString()+' '+m+'\n';e.scrollTop=e.scrollHeight}
+function slog(m){sm(m)}
+  var e=document.getElementById('syncLog');if(!e)return;
+  e.textContent+=new Date().toLocaleTimeString()+' '+m+'\n';e.scrollTop=e.scrollHeight;
+}
+function sa(){var u=document.getElementById('syncUrl').value.trim(),k=document.getElementById('syncKey').value.trim();return u&&k?{u,k}:null}
+
+async function sTest(){
+  var u=document.getElementById('syncUrl').value.trim();if(!u){showToast('请输入地址');return}
+  sm('测试中...');
+  try{var r=await fetch(u+'/api/health',{signal:AbortSignal.timeout(5000)});var d=await r.json();
+    if(d.ok){document.getElementById('syncStatusText').textContent='✅ 已连接';sm('✅ 成功');showToast('连接成功')}
+    else{document.getElementById('syncStatusText').textContent='❌ 失败';sm('❌ 失败')}
+  }catch(e){document.getElementById('syncStatusText').textContent='❌ 失败';sm('❌ '+e.message);showToast('连接失败')}
+}
+
+async function sUpload(){
+  var a=sa();if(!a){showToast('请填写地址和密钥');return}
+  if(state.transactions.length===0){showToast('无数据');return}
+  sm('上传 '+state.transactions.length+' 条...');
+  try{var r=await fetch(a.u+'/api/sync/upload',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':a.k},body:JSON.stringify({data:state.transactions}),signal:AbortSignal.timeout(10000)});
+    var d=await r.json();if(d.ok){
+      sm('✅ 上传成功 v'+d.version);document.getElementById('syncTimeText').textContent='上次: '+new Date().toLocaleString();
+      var c=lsc();c.u=a.u;c.k=a.k;c.ts=Date.now();ssc(c);showToast('上传成功')
+    }else{sm('❌ '+d.error);showToast(d.error)}
+  }catch(e){sm('❌ '+e.message);showToast('上传失败')}
+}
+
+async function sDownload(){
+  var a=sa();if(!a){showToast('请填写地址和密钥');return}
+  sm('下载中...');
+  try{var r=await fetch(a.u+'/api/sync/download',{headers:{'X-API-Key':a.k},signal:AbortSignal.timeout(10000)});
+    var d=await r.json();
+    if(d.ok&&Array.isArray(d.data)){
+      if(d.data.length===0){sm('云端无数据');showToast('云端无数据');return}
+      showConfirm('用云端('+d.data.length+'条)替换本地('+state.transactions.length+'条)?',function(){
+        state.transactions=d.data;saveData();renderAll();
+        sm('✅ 下载 '+d.data.length+' 条');document.getElementById('syncTimeText').textContent='上次: '+new Date().toLocaleString();
+        var c=lsc();c.u=a.u;c.k=a.k;c.ts=Date.now();ssc(c);showToast('下载成功')
+      });
+    }else{sm('❌ '+(d.error||'错误'));showToast('下载失败')}
+  }catch(e){sm('❌ '+e.message);showToast('下载失败')}
+}
+
+async function sMerge(){
+  var a=sa();if(!a){showToast('请填写地址和密钥');return}
+  sm('合并中...');
+  try{var r=await fetch(a.u+'/api/sync/merge',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':a.k},body:JSON.stringify({data:state.transactions}),signal:AbortSignal.timeout(10000)});
+    var d=await r.json();
+    if(d.ok&&Array.isArray(d.data)){
+      state.transactions=d.data;saveData();renderAll();
+      sm('✅ 合并完成: '+d.recordCount+' 条');document.getElementById('syncTimeText').textContent='上次: '+new Date().toLocaleString();
+      var c=lsc();c.u=a.u;c.k=a.k;c.ts=Date.now();ssc(c);showToast('同步完成')
+    }else{sm('❌ '+(d.error||'失败'));showToast('同步失败')}
+  }catch(e){sm('❌ '+e.message);showToast('同步失败')}
+}
+
+async function sRegister(){
+  var u=document.getElementById('syncUrl').value.trim();if(!u){showToast('请输入地址');return}
+  sm('注册中...');
+  try{var r=await fetch(u+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(5000)});
+    var d=await r.json();if(d.ok&&d.apiKey){
+      document.getElementById('syncKey').value=d.apiKey;sm('✅ 注册成功');
+      var c=lsc();c.u=u;c.k=d.apiKey;ssc(c);showToast('注册成功')
+    }else{sm('❌ '+(d.error||'失败'));showToast('注册失败')}
+  }catch(e){sm('❌ '+e.message);showToast('注册失败')}
+}
+
+function initSync(){
+  var c=lsc();if(c.u)document.getElementById('syncUrl').value=c.u;
+  if(c.k)document.getElementById('syncKey').value=c.k;
+  if(c.ts)document.getElementById('syncTimeText').textContent='上次: '+new Date(c.ts).toLocaleString();
+  if(c.u&&c.k)document.getElementById('syncStatusText').textContent='⚫ 就绪';
+}
+document.getElementById('syncBtn').addEventListener('click',function(){document.getElementById('syncModal').classList.add('show');document.getElementById('syncLog').textContent='';initSync()});
+document.getElementById('syncClose').addEventListener('click',function(){var c=lsc();c.u=document.getElementById('syncUrl').value.trim();c.k=document.getElementById('syncKey').value.trim();ssc(c);document.getElementById('syncModal').classList.remove('show')});
+/* already handled */
+document.getElementById('syncTest').addEventListener('click',sTest);
+document.getElementById('syncUpload').addEventListener('click',sUpload);
+document.getElementById('syncDownload').addEventListener('click',sDownload);
+document.getElementById('syncMerge').addEventListener('click',sMerge);
+document.getElementById('syncRegister').addEventListener('click',sRegister);
+
+
+// ===== GitHub Sync =====
+var GK='gh_sync_cfg';
+function glsc(){try{return JSON.parse(localStorage.getItem(GK))||{}}catch(e){return{}}}
+function gssc(c){localStorage.setItem(GK,JSON.stringify(c))}
+
+async function ghRequest(method,path,token,body){
+  var opts={method,headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3+json'}};
+  if(body){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
+  var r=await fetch('https://api.github.com'+path,opts);
+  var d=r.status===204?null:await r.json();
+  return {ok:r.ok,status:r.status,data:d};
+}
+
+async function ghTest(){
+  var token=document.getElementById('githubToken').value.trim();
+  var repo=document.getElementById('githubRepo').value.trim();
+  if(!token||!repo){showToast('请填写 Token 和仓库名');return}
+  slog('测试 GitHub 连接...');
+  var r=await ghRequest('GET','/repos/'+repo,token);
+  if(r.ok){
+    document.getElementById('ghStatusText').textContent='✅ 已连接: '+r.data.full_name;
+    slog('✅ 连接成功: '+r.data.full_name);showToast('连接成功');
+    var c=glsc();c.token=token;c.repo=repo;gssc(c);
+  }else{
+    document.getElementById('ghStatusText').textContent='❌ 失败: '+(r.data?.message||'');
+    slog('❌ '+(r.data?.message||'连接失败'));showToast('连接失败');
+  }
+}
+
+function ghEnc(s){return btoa(unescape(encodeURIComponent(s)))}
+function ghDec(s){return decodeURIComponent(escape(atob(s)))}
+
+async function ghUpload(){
+  var token=document.getElementById('githubToken').value.trim();
+  var repo=document.getElementById('githubRepo').value.trim();
+  if(!token||!repo){showToast('请填写信息');return}
+  if(state.transactions.length===0){showToast('无数据');return}
+  slog('上传 '+state.transactions.length+' 条到 GitHub...');
+  // Get existing file to get SHA
+  var existing=await ghRequest('GET','/repos/'+repo+'/contents/bill_data.json',token);
+  var sha=existing.ok?existing.data.sha:null;
+  var content=ghEnc(JSON.stringify(state.transactions,null,2));
+  var body={message:'Sync bill data '+new Date().toLocaleString(),content:content};
+  if(sha)body.sha=sha;
+  var r=await ghRequest('PUT','/repos/'+repo+'/contents/bill_data.json',token,body);
+  if(r.ok){
+    slog('✅ 上传成功');showToast('上传成功');
+    document.getElementById('ghTimeText').textContent='上次: '+new Date().toLocaleString();
+    var c=glsc();c.token=token;c.repo=repo;c.ts=Date.now();gssc(c);
+  }else{slog('❌ '+(r.data?.message||'失败'));showToast('上传失败')}
+}
+
+async function ghDownload(){
+  var token=document.getElementById('githubToken').value.trim();
+  var repo=document.getElementById('githubRepo').value.trim();
+  if(!token||!repo){showToast('请填写信息');return}
+  slog('从 GitHub 下载...');
+  var r=await ghRequest('GET','/repos/'+repo+'/contents/bill_data.json',token);
+  if(r.ok&&r.data.content){
+    var json=ghDec(r.data.content);
+    var data=JSON.parse(json);
+    if(Array.isArray(data)){
+      if(data.length===0){slog('云端无数据');showToast('云端无数据');return}
+      showConfirm('用云端('+data.length+'条)替换本地('+state.transactions.length+'条)?',function(){
+        state.transactions=data;saveData();renderAll();
+        slog('✅ 下载 '+data.length+' 条');showToast('下载成功');
+        document.getElementById('ghTimeText').textContent='上次: '+new Date().toLocaleString();
+        var c=glsc();c.token=token;c.repo=repo;c.ts=Date.now();gssc(c);
+      });
+    }else{slog('❌ 数据格式错误')}
+  }else{slog('❌ '+(r.data?.message||'下载失败'));showToast('下载失败')}
+}
+
+async function ghMerge(){
+  var token=document.getElementById('githubToken').value.trim();
+  var repo=document.getElementById('githubRepo').value.trim();
+  if(!token||!repo){showToast('请填写信息');return}
+  slog('合并同步中...');
+  var r=await ghRequest('GET','/repos/'+repo+'/contents/bill_data.json',token);
+  var localData=state.transactions;
+  if(r.ok&&r.data.content){
+    var remote=JSON.parse(ghDec(r.data.content));
+    if(Array.isArray(remote)){
+      // Merge: deduplicate by id
+      var map=new Map();
+      remote.forEach(function(t){map.set(t.id,t)});
+      localData.forEach(function(t){if(!map.has(t.id))map.set(t.id,t)});
+      var merged=Array.from(map.values()).sort(function(a,b){return(b.createdAt||0)-(a.createdAt||0)});
+      state.transactions=merged;saveData();renderAll();
+      // Upload merged data back
+      var sha=r.data.sha;
+      var content=ghEnc(JSON.stringify(merged,null,2));
+      var body2={message:'Merge sync '+new Date().toLocaleString(),content:content,sha:sha};
+      var r2=await ghRequest('PUT','/repos/'+repo+'/contents/bill_data.json',token,body2);
+      if(r2.ok){
+        slog('✅ 合并完成: '+merged.length+' 条');showToast('同步完成');
+        document.getElementById('ghTimeText').textContent='上次: '+new Date().toLocaleString();
+        var c=glsc();c.token=token;c.repo=repo;c.ts=Date.now();gssc(c);
+      }else{slog('❌ 上传合并结果失败')}
+    }else{slog('❌ 云端数据格式错误')}
+  }else{
+    // No remote data, upload local
+    slog('云端无数据，上传本地...');
+    var content=ghEnc(JSON.stringify(localData,null,2));
+    var body={message:'Initial sync '+new Date().toLocaleString(),content:content};
+    var r2=await ghRequest('PUT','/repos/'+repo+'/contents/bill_data.json',token,body);
+    if(r2.ok){
+      slog('✅ 已上传 '+localData.length+' 条');showToast('同步完成');
+      document.getElementById('ghTimeText').textContent='上次: '+new Date().toLocaleString();
+      var c=glsc();c.token=token;c.repo=repo;c.ts=Date.now();gssc(c);
+    }else{slog('❌ 上传失败: '+(r2.data?.message||''))}
+  }
+}
+
+function initGithubSync(){
+  var c=glsc();
+  if(c.token)document.getElementById('githubToken').value=c.token;
+  if(c.repo)document.getElementById('githubRepo').value=c.repo;
+  if(c.ts)document.getElementById('ghTimeText').textContent='上次: '+new Date(c.ts).toLocaleString();
+  if(c.token&&c.repo)document.getElementById('ghStatusText').textContent='⚫ 就绪';
+}
+
+// Tab switching
+document.getElementById('syncModal').addEventListener('click',function(e){
+  if(e.target.classList.contains('sync-tab')){
+    var tab=e.target.dataset.tab;
+    document.querySelectorAll('.sync-tab').forEach(function(t){t.classList.remove('active')});
+    e.target.classList.add('active');
+    document.getElementById('syncTabServer').style.display=tab==='server'?'flex':'none';
+    document.getElementById('syncTabGithub').style.display=tab==='github'?'flex':'none';
+  }
+});
+
+// GitHub event listeners
+document.getElementById('ghTest').addEventListener('click',ghTest);
+document.getElementById('ghUpload').addEventListener('click',ghUpload);
+document.getElementById('ghDownload').addEventListener('click',ghDownload);
+document.getElementById('ghMerge').addEventListener('click',ghMerge);
+
+// Override initSync to also init GitHub
+var _origInitSync=window.initSync||function(){};
+initSync=function(){
+  _origInitSync();
+  initGithubSync();
+};
+
+// ===== Init =====
+loadData();
+document.getElementById('dateInput').value=todayStr();
+renderAll();
+// Register service worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+console.log('📋 账单记录器已启动 | 数据条数:',state.transactions.length);
+</script>
+
+<div class="modal-overlay"
+<div class="modal-overlay" id="syncModal">
+  <div class="modal-sheet">
+    <h3>🔄 数据同步</h3>
+    <div class="sync-tabs">
+      <div class="sync-tab active" data-tab="server">服务器</div>
+      <div class="sync-tab" data-tab="github">GitHub</div>
+    </div>
+    <!-- Server sync -->
+    <div id="syncTabServer" style="display:flex;flex-direction:column;gap:10px">
+      <input type="text" id="syncUrl" placeholder="服务器地址" style="border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.85rem;outline:none;width:100%">
+      <div style="display:flex;gap:8px">
+        <input type="text" id="syncKey" placeholder="API密钥" style="flex:1;border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.85rem;outline:none">
+        <button id="syncRegister" style="border:none;border-radius:8px;padding:10px 14px;background:var(--green-100);color:var(--green-800);font-size:.85rem;font-weight:600;cursor:pointer;white-space:nowrap">注册</button>
+      </div>
+      <div style="display:flex;gap:6px;font-size:.8rem;color:var(--gray-400)">
+        <span id="syncStatusText">未连接</span><span>·</span><span id="syncTimeText">-</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="syncTest" style="flex:1;border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;background:var(--white);color:var(--gray-700);font-size:.85rem;font-weight:600;cursor:pointer">测试</button>
+        <button id="syncUpload" style="flex:1;border:none;border-radius:8px;padding:10px;background:var(--green-800);color:var(--white);font-size:.85rem;font-weight:700;cursor:pointer">☁ 上传</button>
+        <button id="syncDownload" style="flex:1;border:none;border-radius:8px;padding:10px;background:var(--green-700);color:var(--white);font-size:.85rem;font-weight:700;cursor:pointer">☁ 下载</button>
+        <button id="syncMerge" style="flex:1;border:1.5px solid var(--green-600);border-radius:8px;padding:10px;background:var(--white);color:var(--green-800);font-size:.85rem;font-weight:600;cursor:pointer">合并</button>
+      </div>
+    </div>
+    <!-- GitHub sync -->
+    <div id="syncTabGithub" style="display:none;flex-direction:column;gap:10px">
+      <input type="text" id="githubToken" placeholder="GitHub Token (个人访问令牌)" style="border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.85rem;outline:none;width:100%">
+      <input type="text" id="githubRepo" placeholder="仓库名: 用户名/仓库名 (如 chai/bill-data)" style="border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.85rem;outline:none;width:100%">
+      <div style="display:flex;gap:6px;font-size:.8rem;color:var(--gray-400)">
+        <span id="ghStatusText">未连接</span><span>·</span><span id="ghTimeText">-</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="ghTest" style="flex:1;border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;background:var(--white);color:var(--gray-700);font-size:.85rem;font-weight:600;cursor:pointer">测试连接</button>
+        <button id="ghUpload" style="flex:1;border:none;border-radius:8px;padding:10px;background:var(--green-800);color:var(--white);font-size:.85rem;font-weight:700;cursor:pointer">☁ 上传</button>
+        <button id="ghDownload" style="flex:1;border:none;border-radius:8px;padding:10px;background:var(--green-700);color:var(--white);font-size:.85rem;font-weight:700;cursor:pointer">☁ 下载</button>
+        <button id="ghMerge" style="flex:1;border:1.5px solid var(--green-600);border-radius:8px;padding:10px;background:var(--white);color:var(--green-800);font-size:.85rem;font-weight:600;cursor:pointer">合并</button>
+      </div>
+    </div>
+    <div id="syncLog" style="font-size:.78rem;color:var(--gray-400);max-height:80px;overflow-y:auto;background:var(--gray-100);border-radius:6px;padding:8px;line-height:1.5;font-family:monospace;white-space:pre-wrap;margin-top:8px"></div>
+    <button id="syncClose" class="submit-btn cancel-btn" style="margin-top:10px;background:var(--gray-400)">关闭</button>
+  </div>
+</div>      <div id="syncLog" style="font-size:.78rem;color:var(--gray-400);max-height:80px;overflow-y:auto;background:var(--gray-100);border-radius:6px;padding:8px;line-height:1.5;font-family:monospace;white-space:pre-wrap"></div>
+    </div>
+    <button id="syncClose" class="submit-btn cancel-btn" style="margin-top:10px;background:var(--gray-400)">关闭</button>
+  </div>
+</div>
+</body>
+</html>
