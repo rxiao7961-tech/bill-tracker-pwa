@@ -1168,8 +1168,7 @@ function initSync(){
   if(c.u&&c.k)document.getElementById('syncStatusText').textContent='⚫ 就绪';
 }
 document.getElementById('syncBtn').addEventListener('click',function(){document.getElementById('syncModal').classList.add('show');document.getElementById('syncLog').textContent='';initSync()});
-document.getElementById('syncClose').addEventListener('click',function(){var c1=lsc();c1.u=document.getElementById('syncUrl').value.trim();c1.k=document.getElementById('syncKey').value.trim();ssc(c1);var c2=glsc();c2.token=document.getElementById('githubToken').value.trim();c2.repo=document.getElementById('githubRepo').value.trim();gssc(c2);document.getElementById('syncModal').classList.remove('show')});
-/* already handled */
+document.getElementById('syncClose').addEventListener('click',function(){var c1=lsc();c1.u=document.getElementById('syncUrl').value.trim();c1.k=document.getElementById('syncKey').value.trim();ssc(c1);var c2=glsc();c2.token=document.getElementById('githubToken').value.trim();c2.repo=document.getElementById('githubRepo').value.trim();gssc(c2);document.getElementById('syncModal').classList.remove('show')});
 document.getElementById('syncTest').addEventListener('click',sTest);
 document.getElementById('syncUpload').addEventListener('click',sUpload);
 document.getElementById('syncDownload').addEventListener('click',sDownload);
@@ -1430,7 +1429,7 @@ console.log('📋 账单记录器已启动 | 数据条数:',state.transactions.l
       </div>
     </div>
     <div id="syncLog" style="font-size:.78rem;color:var(--gray-400);max-height:80px;overflow-y:auto;background:var(--gray-100);border-radius:6px;padding:8px;line-height:1.5;font-family:monospace;white-space:pre-wrap;margin-top:8px"></div>
-    <button id="syncClose" class="submit-btn cancel-btn" style="margin-top:10px;background:var(--gray-400)">关闭</button>
+    <button id="syncClose" class="submit-btn cancel-btn" style="margin-top:10px;background:var(--gray-400)" onclick="document.getElementById('syncModal').classList.remove('show')">关闭</button>
   </div>
 </div>      <div id="syncLog" style="font-size:.78rem;color:var(--gray-400);max-height:80px;overflow-y:auto;background:var(--gray-100);border-radius:6px;padding:8px;line-height:1.5;font-family:monospace;white-space:pre-wrap"></div>
     </div>
