@@ -1,0 +1,11 @@
+[
+  {
+    "id": "mqchlraf9009",
+    "type": "expense",
+    "amount": 5,
+    "category": "food",
+    "date": "2026-06-13",
+    "note": "",
+    "createdAt": 1781363113575
+  }
+]
