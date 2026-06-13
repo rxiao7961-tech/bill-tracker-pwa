@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -1098,9 +1098,6 @@ function lsc(){try{return JSON.parse(localStorage.getItem(SK))||{}}catch(e){retu
 function ssc(c){localStorage.setItem(SK,JSON.stringify(c))}
 function sm(m){var e=document.getElementById('syncLog');if(!e)return;e.textContent+=new Date().toLocaleTimeString()+' '+m+'\n';e.scrollTop=e.scrollHeight}
 function slog(m){sm(m)}
-  var e=document.getElementById('syncLog');if(!e)return;
-  e.textContent+=new Date().toLocaleTimeString()+' '+m+'\n';e.scrollTop=e.scrollHeight;
-}
 function sa(){var u=document.getElementById('syncUrl').value.trim(),k=document.getElementById('syncKey').value.trim();return u&&k?{u,k}:null}
 
 async function sTest(){
